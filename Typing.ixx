@@ -8,8 +8,6 @@ import std;
 
 using namespace std;
 
-// TODO: 目前经常打漏的原因貌似并不只是延迟（还有消息队列之类的神奇问题，因为只要输出长度不长，哪怕没有延迟也不会打漏，长度一长几乎必漏），后面要尝试加一个批处理
-
 export namespace NylteJ
 {
 	class Typer
@@ -120,7 +118,7 @@ export namespace NylteJ
 					KeyPress(newKey);
 			}
 		}
-		void Type(string_view text, chrono::milliseconds delayRatio, bool delayProtect = true)
+		void Type(string_view text, chrono::milliseconds delayRatio)
 		{
 			for (int i = 0; i < text.size(); i++)
 			{
@@ -136,18 +134,23 @@ export namespace NylteJ
 					if (NeedShift(text[i]))
 						distance += min(GetDistance(delayMap[text[i]], delayMap[VK_SHIFT]), 4);
 
-					if (!delayProtect)
-						this_thread::sleep_for(distance * delayRatio);
-					else
-						this_thread::sleep_for(max(max(distance, 3) * delayRatio, 35ms));
+					this_thread::sleep_for(distance * delayRatio);
 				}
 				else
 					this_thread::sleep_for(4 * delayRatio);
 
+				if (delayRatio == 0ms)
+				{
+					if (text[i] == '\n')
+						this_thread::sleep_for(100ms);
+					if (i % 20 == 0)
+						this_thread::sleep_for(50ms);	// 和分 20 次 sleep 不一样，后者由于时间片切换的关系，实际 sleep 时间远长于前者
+				}
+
 				Type(text[i]);
 
-				if (delayProtect)
-					this_thread::sleep_for(5ms + delayRatio);
+				if (delayRatio == 0ms && text[i] == '\n')
+					this_thread::sleep_for(100ms);
 			}
 		}
 	};
